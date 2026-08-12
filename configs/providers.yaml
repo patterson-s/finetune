@@ -1,0 +1,56 @@
+# Finetune project — provider configuration
+# Source of truth: docs/design.md (R3) + R1 memos. Secrets live in .env, NOT here.
+
+providers:
+  adaption:
+    name: Adaption Labs
+    role: "data shaping (Adaptive Data) + optional training (AutoScientist)"
+    env_key: ADAPTION_API_KEY
+    sdk: "adaption"
+    notes: "Free credits + beta access. Use for Track B data optimization. API: docs.adaptionlabs.ai. Format: prompt/context/output maps 1:1 to column_mapping."
+
+  together:
+    name: Together AI
+    role: "hosted LoRA/SFT finetuning + serving (default)"
+    env_key: TOGETHER_API_KEY
+    notes: "USA. SFT-LoRA ~$0.48/1M tokens (<=16B). First-class Qwen support. Weights downloadable. Watch hosting bill not training bill."
+
+  fireworks:
+    name: Fireworks AI
+    role: "hosted finetuning + serving (runner-up)"
+    env_key: FIREWORKS_API_KEY
+    notes: "USA. Serverless training billed per 1M tokens; managed training per GPU-hour."
+
+  huggingface:
+    name: Hugging Face Hub
+    role: "weight registry (primary)"
+    env_key: HF_TOKEN
+    notes: "Private repo per artifact-id: adapter (LoRA) + merged Q4 GGUF + manifest.json. ~100GB private free. License-aware."
+
+  llama_cpp:
+    name: llama.cpp
+    role: "local Jetson inference (serve)"
+    notes: "llama-server OpenAI-compatible /v1 endpoint (port 8080) + Anthropic-compatible for Claude Code. Jetson: <=~7B Q4 GGUF, 8GB ceiling, on-demand only (thermals)."
+
+  ollama:
+    name: Ollama
+    role: "local Jetson inference (serve, alt)"
+    notes: "OpenAI-compatible /v1 on port 11434. Model-name based. Already installed on Jetson."
+
+  adaption_together_integration:
+    name: Adaption x Together
+    role: "optional combined path"
+    notes: "Connect Together account; run Together Fine-Tuning on an Adapted dataset (LoRA + full, <=100B). Decision rule: pick easiest/best-value given credits, keep weight-downloadability + Jetson feasibility as hard requirements."
+
+# Model origins (provider-location axis, R1 matrix)
+geography:
+  usa: [Together, Fireworks, Replicate, Modal, OpenPipe]
+  eu: [HuggingFace]
+  china_origin: [Qwen, DeepSeek]
+  us_origin: [Llama, Gemma, Phi]
+  eu_origin: [Mistral]
+
+# Base model defaults per tier (see tasks.yaml)
+model_defaults:
+  cloud: "Qwen/Qwen3-8B-Instruct"
+  jetson: "Qwen/Qwen3-4B-Instruct"   # Q4_K_M ~2.5GB; pending flavor check vs Qwen2.5-3B

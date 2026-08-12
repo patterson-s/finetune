@@ -1,0 +1,89 @@
+# Finetune project — task specifications
+# Source of truth: docs/design.md (R3). One block per candidate task.
+# Tiers: 1=immediate (education), 2=short-term (prosopography), 3=backburner (FEC, pydeal).
+
+tasks:
+  education_extraction:
+    id: education_extraction
+    name: Education experience extraction
+    tier: 1
+    status: active
+    description: >
+      Extract a person's structured education history (level, field, university,
+      year, country) from biographical source material, and verify the info is
+      actually about the target person (distractor/anti-hallucination resistant).
+    gold_source:
+      type: json
+      path: "C:/Users/spatt/Desktop/UN_AI_PANEL/review/education_check/education_check.json"
+      schema_note: "79 people / 193 degrees / 842 sources; fields: level, field, university, year, country; per-degree citations + quotes"
+    output_schema:
+      type: json
+      fields: [level, field, university, year, country]
+      notes: "Structured JSON array of degrees; empty array when none; must not include other-person info"
+    model_tiers:
+      cloud: "Qwen/Qwen3-8B-Instruct"
+      jetson: "Qwen/Qwen3-4B-Instruct"   # Q4_K_M ~2.5GB; flavor pending check
+    data_tracks:
+      track_a: "minimal conversion of education_check.json via collect"
+      track_b: "Adaption Labs Adaptive Data optimization of same data"
+    eval:
+      metric: "field-level exact match + structural JSON validity"
+      split: "person-disjoint; ~15-20% of people held out"
+      probe: "distractor test: bio + other-person degree must NOT be attributed to target"
+
+  career_extraction:
+    id: career_extraction
+    name: Career / professional-background extraction
+    tier: 2
+    status: pending
+    description: Extract structured career events (role, organization, time, location) from biographical sources.
+    gold_source:
+      type: jsonl
+      path: "C:/Users/spatt/Desktop/EliteResearchAgent/services/careerfinder_granular_01/review/"
+      schema_note: "75 persons / 2,714 chunk->extraction pairs / 10,469 events; step1/2/3 decomposition, quotes+URLs+verification flags"
+    model_tiers:
+      cloud: "Qwen/Qwen3-8B-Instruct"
+      jetson: "Qwen/Qwen3-4B-Instruct"
+    status_note: "Gated on education_extraction (Tier 1) passing its gold bar."
+
+  org_harmonization:
+    id: org_harmonization
+    name: Organization ontology / harmonization
+    tier: 2
+    status: pending
+    description: Map raw organization mentions to canonical names, types, countries, and hierarchies.
+    gold_source:
+      type: json
+      path: "C:/Users/spatt/Desktop/EliteResearchAgent_v2/services/OntologyBuilder_v1/data/university_ontology.json"
+      schema_note: "144 canonical-variant records; also v4 org_ontology_mappings (168) + raw pool org_ontology_01/data/careerfinder_results.jsonl"
+    output_schema:
+      type: json
+      fields: [canonical_name, org_type, country, posting_country, posting_city]
+    model_tiers:
+      cloud: "Qwen/Qwen3-8B-Instruct"
+      jetson: "Qwen/Qwen3-4B-Instruct"
+    architecture_note: "Best fit for the FEC_BLS decoder-map / closed-vocabulary output pattern (constrain to canonical-name space)."
+    status_note: "Gated on Tier 1."
+
+  fec_hierarchical_classification:
+    id: fec_hierarchical_classification
+    name: FEC occupation hierarchical classification (re-architecture)
+    tier: 3
+    status: backburner
+    description: >
+      Re-architect the prior FEC_BLS occupation->SOC finetune into a hierarchical
+      classification system exploiting the output taxonomy's parent categories,
+      off OpenAI infra, as a small possibly multi-step model; benchmark vs current.
+    prior_art: "C:/Users/spatt/Desktop/finetune_FEC_BLS (data/finetune.jsonl, 106,935 records; decoder-map pattern)"
+    status_note: "Backburner; pipeline from Tier 1 applies."
+
+  pydeal_type_classification:
+    id: pydeal_type_classification
+    name: pydeal_type aggressor/victim classification model
+    tier: 3
+    status: backburner
+    description: >
+      Leverage the large pydeal_type corpus (24GB, two Cohere models on same data
+      = built-in confidence triage) into a small classification model.
+    prior_art: "C:/Users/spatt/Desktop/pydeal_type (adaption_test_dataset_v1.csv, complete_v2.jsonl ~21,400 records, r7b/rplus agreement)"
+    status_note: "Backburner; cross-model agreement can pseudo-label high-confidence training rows."
