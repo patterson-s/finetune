@@ -86,6 +86,15 @@ BAD_UNI = re.compile(r"defended in|^—$|unknown|not stated|not confirmed|ambigu
 COMBINED = re.compile(r"[/&]|\band\b|\+", re.I)
 COMBINED_LEVEL = re.compile(r"BSc|BA|MSc|MA|PhD|MPhil|MBBS|LL\.?B|LL\.?M|JD|MD|BS\b|MS\b")
 
+# Specific degrees flagged by full prose verification as having NO evidence in
+# any source for the person (verified 2026-08-12): the claimed university could
+# not be found in prose, infobox, or CJK form in any cited or available source.
+# Keyed by (person, level) to be precise.
+PROSE_VERIFIED_BAD = {
+    ("Alvitta Ottley", "B.S."),
+    ("Jimena Sofia Viveros Alvarez", "Law degree"),
+}
+
 
 def is_excluded(level_raw: str) -> bool:
     """Return True if a degree row should be dropped (not a clean, single degree)."""
@@ -273,6 +282,8 @@ def build_needs_fix(gold: dict) -> list[dict]:
             field_raw = degree.get("fields", {}).get("field", "")
             uni_raw = degree.get("fields", {}).get("university", "")
             reason = []
+            if (name, level_raw) in PROSE_VERIFIED_BAD:
+                reason.append("prose-verified-bad")
             if is_excluded(level_raw):
                 reason.append("level")
             if is_excluded_fields(level_raw, field_raw, uni_raw):
@@ -305,6 +316,8 @@ def build_dataset(gold: dict, include_negatives: bool = True) -> list[dict]:
             level_raw = degree.get("fields", {}).get("level", "")
             field_raw = degree.get("fields", {}).get("field", "")
             uni_raw = degree.get("fields", {}).get("university", "")
+            if (name, level_raw) in PROSE_VERIFIED_BAD:
+                continue
             if is_excluded(level_raw) or is_excluded_fields(level_raw, field_raw, uni_raw):
                 continue
             ext = _extraction(degree)

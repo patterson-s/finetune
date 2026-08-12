@@ -1,0 +1,23 @@
+FULL PROSE VERIFICATION v2 (CJK-aware) — kept positive degrees
+============================================================
+TOTAL kept positives: 167
+  VERIFIED (uni in prose): 157
+  INFOBOX-ONLY (uni only in infobox, NOT prose): 1
+  PROSE-MISS (uni not found in any cited source): 5
+  NO-TEXT (no usable source text): 4
+
+### INFOBOX-ONLY — uni NOT confirmed in prose (1)
+  - Amandeep Singh Gill | B.Tech | Electronics and Electrical Communications | Punjab Engineering College, Chandigarh
+
+### PROSE-MISS — uni not found in any cited source (5)
+  - Alvitta Ottley | B.S. | Computer Science | SUNY Plattsburgh
+  - Jian Wang | Bachelor's | Psychology | Hangzhou University
+  - Jimena Sofia Viveros Alvarez | Law degree | Law | Universidad Iberoamericana
+  - Piotr Sankowski | Undergraduate (Studia informatyczne) | Computer Science | University of Warsaw
+  - Zhang Linghan | PhD (博士) | Law | Jilin University (吉林大学)
+
+### NO-TEXT (4)
+  - Emma Ruttkamp-Bloem | BA | Philosophy | University of Pretoria
+  - Emma Ruttkamp-Bloem | BA (Honours) | Philosophy | University of Pretoria
+  - Emma Ruttkamp-Bloem | MA | Philosophy | University of Pretoria
+  - Yi Zeng | Bachelor's | Computer Science / AI (foundational) | Beijing University of Technology (北京工业大学)
