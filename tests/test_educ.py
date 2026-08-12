@@ -61,8 +61,21 @@ def test_is_excluded():
     assert is_excluded("Undergraduate (study abroad)")
     assert is_excluded("Fulbright Fellowship (not a degree)")
     assert is_excluded("Master's thesis research (visiting student)")
+    assert is_excluded("MSc — likely a single degree described two different ways")
     assert not is_excluded("PhD")
     assert not is_excluded("BSc")
+
+
+def test_is_excluded_fields():
+    from finetune.collect.educ import is_excluded_fields
+    # hedged/unknown university or field -> excluded
+    assert is_excluded_fields("PhD", "Law", "Defended in Yekaterinburg, Russia")
+    assert is_excluded_fields("Master's", "institution not clearly stated", "Ambiguous")
+    assert is_excluded_fields("PhD", "good field", "Unknown — not confirmed")
+    # merged degree in level -> excluded
+    assert is_excluded_fields("BSc / BA", "field", "Bahir Dar University")
+    # clean -> not excluded
+    assert not is_excluded_fields("PhD", "Computer Science", "MIT")
 
 
 def test_chunk_and_doc_context():

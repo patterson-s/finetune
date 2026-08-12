@@ -70,12 +70,43 @@ NOT_A_DEGREE = re.compile(
 # experience (kept only if clearly a degree; handled by NOT_A_DEGREE above).
 CREDENTIAL_ONLY = re.compile(r"\(credential only|credentials\)", re.I)
 
+# Phrases in the level/field that mark a hedged, uncertain, or multi-way label
+# that must NOT be used as a training target.
+UNCERTAIN = re.compile(
+    r"likely|conflict|not in the existing|missing from|maybe|possibly|"
+    r"candidate|implied|not verifiable|not clearly|not stated|not confirmed|"
+    r"ambiguous|per one source|per another|two different|three different|"
+    r"mislabeled|not a separate", re.I
+)
+
+# University field that is not an actual institution (city, dash, unknown, hedge).
+BAD_UNI = re.compile(r"defended in|^—$|unknown|not stated|not confirmed|ambiguous|not verifiable", re.I)
+
+# Multi-degree merged into one row (e.g. "BSc / BA", "MPhil / PhD", "BA + BS").
+COMBINED = re.compile(r"[/&]|\band\b|\+", re.I)
+COMBINED_LEVEL = re.compile(r"BSc|BA|MSc|MA|PhD|MPhil|MBBS|LL\.?B|LL\.?M|JD|MD|BS\b|MS\b")
+
 
 def is_excluded(level_raw: str) -> bool:
-    """Return True if a degree row should be dropped (not a real degree)."""
+    """Return True if a degree row should be dropped (not a clean, single degree)."""
     if NOT_A_DEGREE.search(level_raw):
         return True
-    return bool(CREDENTIAL_ONLY.search(level_raw))
+    if CREDENTIAL_ONLY.search(level_raw):
+        return True
+    if UNCERTAIN.search(level_raw):
+        return True
+    return False
+
+
+def is_excluded_fields(level_raw: str, field_raw: str, uni_raw: str) -> bool:
+    """Deeper audit exclusion: hedge/conflict in field or non-institution university."""
+    if UNCERTAIN.search(field_raw):
+        return True
+    if BAD_UNI.search(uni_raw):
+        return True
+    if COMBINED.search(level_raw) and COMBINED_LEVEL.search(level_raw):
+        return True
+    return False
 
 
 # --- context extraction ------------------------------------------------------
@@ -228,6 +259,34 @@ def build_negative_rows(person: dict, sources: dict, max_per_person: int = 3) ->
     return rows
 
 
+def build_needs_fix(gold: dict) -> list[dict]:
+    """Preserve the records excluded from training (for later manual fix).
+
+    These are the audit-flagged degrees — infobox errors, hedges, conflicts,
+    non-degrees, merged degrees — kept so the information isn't silently lost.
+    """
+    out = []
+    for person in gold.get("people", []):
+        name = person.get("name", "")
+        for degree in person.get("degrees", []):
+            level_raw = degree.get("fields", {}).get("level", "")
+            field_raw = degree.get("fields", {}).get("field", "")
+            uni_raw = degree.get("fields", {}).get("university", "")
+            reason = []
+            if is_excluded(level_raw):
+                reason.append("level")
+            if is_excluded_fields(level_raw, field_raw, uni_raw):
+                reason.append("fields")
+            if reason:
+                out.append({
+                    "person": name,
+                    "fields": degree.get("fields", {}),
+                    "quote": degree.get("quote", ""),
+                    "reason": "|".join(reason),
+                })
+    return out
+
+
 def build_dataset(gold: dict, include_negatives: bool = True) -> list[dict]:
     """Build the full training dataset at BOTH granularities.
 
@@ -244,7 +303,9 @@ def build_dataset(gold: dict, include_negatives: bool = True) -> list[dict]:
             rows.extend(build_negative_rows(person, sources))
         for degree in person.get("degrees", []):
             level_raw = degree.get("fields", {}).get("level", "")
-            if is_excluded(level_raw):
+            field_raw = degree.get("fields", {}).get("field", "")
+            uni_raw = degree.get("fields", {}).get("university", "")
+            if is_excluded(level_raw) or is_excluded_fields(level_raw, field_raw, uni_raw):
                 continue
             ext = _extraction(degree)
             # Dedupe source keys (a degree may cite the same source twice)
