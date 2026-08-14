@@ -4,6 +4,7 @@ import tempfile
 from pathlib import Path
 
 from finetune.collect.educ import (
+    build_classifier_balanced,
     build_dataset,
     chunk_context,
     doc_context,
@@ -138,3 +139,17 @@ def test_write_jsonl_roundtrip(tmp_path):
     p = write_jsonl(rows, tmp_path / "out.jsonl")
     assert p.exists()
     assert json.loads(p.read_text(encoding="utf-8"))["a"] == 1
+
+
+def test_build_classifier_balanced_is_1to1_and_covers_classes():
+    rows = build_classifier_balanced(_gold(), max_neg_per_person=50)
+    pos = [r for r in rows if r["has_education"] == 1]
+    neg = [r for r in rows if r["has_education"] == 0]
+    assert pos, "expected some positive rows"
+    assert neg, "expected some negative rows"
+    # 1:1 balance (subsampled positives to match negatives)
+    assert len(pos) == len(neg)
+    # negatives carry the education-free source (b.md) and no extraction
+    assert all(r["extraction"] is None for r in neg)
+    # excluded Person B (study abroad) must not appear as a positive
+    assert not any(r["person"] == "Person B" and r["has_education"] == 1 for r in rows)

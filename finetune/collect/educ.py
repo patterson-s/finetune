@@ -298,6 +298,51 @@ def build_needs_fix(gold: dict) -> list[dict]:
     return out
 
 
+def build_classifier_balanced(
+    gold: dict, max_neg_per_person: int = 50, seed: int = 42
+) -> list[dict]:
+    """Build a 1:1-balanced set for the two-stage binary classifier.
+
+    The classifier learns "does this text contain education info?" so it must not
+    be positive-skewed (which would let it over-predict 'has education'). We take
+    all available education-free sources (has_education=0) and subsample positives
+    to match, at both chunk and doc granularity.
+    """
+    import random
+    rng = random.Random(seed)
+    sources = gold.get("sources", {})
+    pos, neg = [], []
+    for person in gold.get("people", []):
+        name = person.get("name", "")
+        neg.extend(build_negative_rows(person, sources, max_per_person=max_neg_per_person))
+        for degree in person.get("degrees", []):
+            lv = degree.get("fields", {}).get("level", "")
+            fd = degree.get("fields", {}).get("field", "")
+            un = degree.get("fields", {}).get("university", "")
+            if (name, lv) in PROSE_VERIFIED_BAD or is_excluded(lv) or is_excluded_fields(lv, fd, un):
+                continue
+            ext = _extraction(degree)
+            seen = set()
+            for cit in degree.get("citations", []):
+                sk = cit.get("source_key")
+                if not sk or sk in seen:
+                    continue
+                seen.add(sk)
+                src = sources.get(sk)
+                if not src or not src.get("lines"):
+                    continue
+                lines = src["lines"]
+                anchor = cit.get("anchor_line_no")
+                pos.append({"person": name, "granularity": "chunk", "has_education": 1,
+                            "context": chunk_context(lines, anchor, degree.get("quote", "")), "extraction": ext})
+                pos.append({"person": name, "granularity": "doc", "has_education": 1,
+                            "context": doc_context(lines), "extraction": ext})
+    # subsample positives to match negative count (1:1)
+    rng.shuffle(pos)
+    pos = pos[: len(neg)]
+    return pos + neg
+
+
 def build_dataset(gold: dict, include_negatives: bool = True) -> list[dict]:
     """Build the full training dataset at BOTH granularities.
 
